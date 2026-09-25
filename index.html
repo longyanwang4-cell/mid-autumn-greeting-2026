@@ -242,7 +242,7 @@
       <div class="seal" aria-label="印章：圆"><span>圆</span></div>
     </div>
 
-    <p class="hint tappable" id="hint">点击夜空 · 燃放烟花</p>
+    <p class="hint tappable" id="hint">点夜空放烟花 · 点月亮寄祝福</p>
 
     <div class="controls" id="controls">
       <button class="tappable" id="btnLantern" title="放三盏孔明灯">🏮<span class="lbl"> 放一盏灯</span></button>
@@ -264,11 +264,13 @@
   var CONFIG = {
     group: '',   // 课题组名称，如 '智能计算课题组'
     from:  '',   // 落款，如 'XX课题组全体师生'
-    wishes: [    // 文字烟花轮播的祝福语（2~6字效果最佳）
-      '中秋快乐', '花好月圆', '阖家团圆',
-      '科研顺利', '论文高中', '数据漂亮',
-      '实验顺遂', '平安喜乐'
-    ]
+    wishes: [    // 文字烟花轮播的祝福语（2~6字效果最佳，可自由增删）
+      '中秋快乐', '花好月圆', '阖家团圆', '平安喜乐',
+      '科研顺利', '论文高中', '数据漂亮', '实验顺遂',
+      '诸事圆满', '心想事成', '基金必中', '毕业顺利',
+      '早点休息', '月圆人安'
+    ],
+    moonWishes: ['但愿人长久', '千里共婵娟', '月是故乡明', '明月照我还']  // 点击月亮的彩蛋诗句
   };
 
   /* ---------- URL 参数覆盖 ---------- */
@@ -305,6 +307,8 @@
     }
   });
 
+  if (!CONFIG.moonWishes || !CONFIG.moonWishes.length) CONFIG.moonWishes = ['但愿人长久', '千里共婵娟'];
+
   /* ---------- 画布 ---------- */
   var cv = document.getElementById('scene');
   var ctx = cv.getContext('2d');
@@ -340,7 +344,27 @@
 
   /* ---------- 场景元素 ---------- */
   var stars = [], nebula = [], fireflies = [], petals = [], lanterns = [], shoots = [];
-  var rockets = [], sparks = [], texts = [];
+  var rockets = [], sparks = [], texts = [], halos = [];
+
+  function spawnHalo(x, y) {
+    halos.push({ x: x, y: y, t: 0 });
+    if (halos.length > 4) halos.shift();
+  }
+  function drawHalos(dt) {                            // 点月亮：月晕涟漪
+    for (var i = halos.length - 1; i >= 0; i--) {
+      var h = halos[i]; h.t += dt;
+      var p = h.t / 1.4;
+      if (p >= 1) { halos.splice(i, 1); continue; }
+      for (var k = 0; k < 2; k++) {
+        var rr = moon.r * (1.15 + p * 1.6 + k * 0.25);
+        var a = (1 - p) * (0.35 - k * 0.12);
+        if (a <= 0) continue;
+        ctx.strokeStyle = 'rgba(244,220,160,' + a.toFixed(3) + ')';
+        ctx.lineWidth = 2 - k * 0.5;
+        ctx.beginPath(); ctx.arc(h.x, h.y, rr, 0, Math.PI * 2); ctx.stroke();
+      }
+    }
+  }
 
   function seed() {
     stars.length = 0; nebula.length = 0; fireflies.length = 0; petals.length = 0;
@@ -451,9 +475,10 @@
     return pts;
   }
 
-  function spawnTextFirework(text) {
-    var apexX = W * rnd(0.38, 0.62), apexY = H * rnd(0.32, 0.42);
-    var scale = Math.min((W * 0.82) / 640, (H * 0.17) / 120, 1.3);
+  function spawnTextFirework(text, highZone) {
+    var apexX = W * rnd(0.38, 0.62);
+    var apexY = H * (highZone ? rnd(0.32, 0.42) : rnd(0.57, 0.63));
+    var scale = Math.min((W * 0.82) / 640, (H * (highZone ? 0.17 : 0.15)) / 120, highZone ? 1.3 : 1.2);
     var pts = buildTargets(text);
     var palette = pickPalette();
     var parts = [];
@@ -598,6 +623,15 @@
         ctx.beginPath(); ctx.fillStyle = 'rgba(244,238,220,' + (a * 0.16).toFixed(3) + ')';
         ctx.arc(s.x, s.y, s.r * 3, 0, Math.PI * 2); ctx.fill();
       }
+      if (s.r > 1.5) {                                   // 大星星十字星芒
+        var L = s.r * 3.4;
+        ctx.strokeStyle = 'rgba(244,238,220,' + (a * 0.35).toFixed(3) + ')';
+        ctx.lineWidth = 0.7;
+        ctx.beginPath();
+        ctx.moveTo(s.x - L, s.y); ctx.lineTo(s.x + L, s.y);
+        ctx.moveTo(s.x, s.y - L); ctx.lineTo(s.x, s.y + L);
+        ctx.stroke();
+      }
       pend();
     }
   }
@@ -610,6 +644,9 @@
     rg.addColorStop(0.35, 'rgba(244,214,150,' + (0.12 * pulse) + ')');
     rg.addColorStop(1, 'rgba(244,214,150,0)');
     ctx.fillStyle = rg; ctx.beginPath(); ctx.arc(moon.x, moon.y, moon.r * 4.4, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(244,220,160,' + (0.07 * pulse).toFixed(3) + ')';   // 月晕
+    ctx.lineWidth = moon.r * 0.22;
+    ctx.beginPath(); ctx.arc(moon.x, moon.y, moon.r * 1.5, 0, Math.PI * 2); ctx.stroke();
     ctx.save(); ctx.translate(moon.x, moon.y); ctx.rotate(reduce ? 0 : t * 0.00003);
     for (var k = 0; k < 12; k++) {
       ctx.save(); ctx.rotate((Math.PI * 2 / 12) * k);
@@ -946,7 +983,7 @@
   function resetTimeline() {
     start = performance.now(); last = start;
     nextAmbient = 6.0; nextText = 13.5; nextLantern = 12; nextShoot = 4.0;
-    rockets.length = 0; sparks.length = 0; texts.length = 0; lanterns.length = 0; shoots.length = 0;
+    rockets.length = 0; sparks.length = 0; texts.length = 0; lanterns.length = 0; shoots.length = 0; halos.length = 0;
     var hint = document.getElementById('hint');
     hint.style.animation = '';
     hint.style.opacity = '';
@@ -978,6 +1015,7 @@
       drawMoonGlow(t, mA); drawMoon(mA);
       ctx.restore();
     }
+    drawHalos(dt);
     ctx.globalAlpha = 1;
 
     ctx.globalAlpha = stage(1.5, 1.6) * 0.8; cloudLayer(0.2, moon.y + moon.r * 0.3, 1.0, 0.012, '0.10', false);
@@ -1005,7 +1043,7 @@
     }
     if (t > nextText) {
       if (!texts.some(function (x) { return x.phase === 'rise'; }) && texts.length < 2) {
-        spawnTextFirework(CONFIG.wishes[wishIdx % CONFIG.wishes.length]);
+        spawnTextFirework(CONFIG.wishes[wishIdx % CONFIG.wishes.length], true);
         wishIdx++;
         nextText = t + rnd(7, 9.5);
       } else nextText = t + 1;
@@ -1028,6 +1066,14 @@
     unlockAudio();
     if (reduce) return;
     var x = e.clientX, y = e.clientY;
+    var dx = x - moon.x, dy = y - moon.y;
+    if (dx * dx + dy * dy < moon.r * moon.r * 1.8) {              // 点月亮：寄一句诗
+      spawnHalo(moon.x, moon.y);
+      if (texts.length < 2 && (performance.now() - start) / 1000 > 7.5) spawnTextFirework(pick(CONFIG.moonWishes), (performance.now() - start) / 1000 > 14.6);
+      hintEl.style.animation = 'none';
+      hintEl.style.opacity = '0';
+      return;
+    }
     if (y > waterY - 24) { spawnLantern(x); }
     else { spawnRocket(x, y, 1.15); }
     hintEl.style.animation = 'none';
